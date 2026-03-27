@@ -5,7 +5,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 // Ensure the API key is available
 const apiKey = process.env.GROQ_API_KEY;
 
-// Create a custom Groq provider using the OpenAI provider setup
+// Create a custom Groq provider
 const groq = createOpenAI({
   apiKey: apiKey || '',
   baseURL: 'https://api.groq.com/openai/v1',
@@ -14,39 +14,80 @@ const groq = createOpenAI({
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { articles, query } = body;
+    const { articles, query, history = [], userContext } = body;
+
+    console.log('[API] Processing query:', query || 'Follow-up');
+    console.log('[API] History length:', history.length);
 
     if (!articles || articles.length === 0) {
       return NextResponse.json({ error: 'No articles provided' }, { status: 400 });
     }
 
     if (!apiKey) {
-      return NextResponse.json({ summary: "Error: GROQ_API_KEY is not configured in environment variables." }, { status: 500 });
+      return NextResponse.json({ summary: "Error: GROQ_API_KEY is not configured." }, { status: 500 });
     }
 
     const articlesContext = articles
       .map((a: { title: string; content: string }, index: number) => `Article ${index + 1}: ${a.title}\nContent: ${a.content}`)
       .join('\n\n');
 
-    let prompt = `You are a helpful and expert news summarizer assistant.
-Analyze the following articles and provide a comprehensive summary with key points.\n\n`;
+    const systemPrompt = `You are a helpful and expert financial news assistant for The Economic Times.
+Analyze the following articles as your primary source of truth. 
+Be conversational, professional, and insightful. 
 
-    if (query) {
-       prompt += `The user was specifically searching for: "${query}". Keep this context in mind.\n\n`;
+${userContext ? `
+USER PROFILE:
+- Profession: ${userContext.profession || 'Not specified'}
+- Location: ${userContext.location || 'Not specified'}
+- Investment Goals: ${userContext.investment_goals || 'Not specified'}
+- Interests: ${userContext.professional_interest || 'General'}
+
+When answering, specifically address:
+1. HOW THIS NEWS AFFECTS THE USER based on their profile.
+2. ACTIONABLE ADVICE: How they can apply for schemes mentioned, or benefit from the trends.
+` : ''}
+
+Articles Context:
+${articlesContext}
+
+Guidelines:
+1. Synthesize information from multiple articles for broad questions.
+2. Provide deep detail for specific entities/trends mentioned.
+3. If user profile is provided, include a section 'PERSONAL IMPACT & ADVICE'.
+4. Always end your response with a section titled 'Suggested Next Questions:' followed by 3 numbered questions.
+5. Format in clean Markdown.
+6. Do not repeat the history in your answer.`;
+
+    // Filter history to ensure format is strictly valid for OpenAI/Groq API
+    const formattedHistory = history.map((msg: any) => ({
+      role: msg.role === 'user' ? 'user' : 'assistant',
+      content: String(msg.content).split('Suggested Next Questions:')[0].trim(),
+    }));
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...formattedHistory,
+    ];
+
+    // If it's a first turn with a query, add it
+    if (query && formattedHistory.length === 0) {
+      messages.push({ role: 'user', content: `Based on these articles, answer: ${query}` });
     }
 
-    prompt += `Here are the articles:\n\n${articlesContext}\n\n`;
-    prompt += `Please format your response clearly, starting with a brief overarching summary, followed by a bulleted list of the most important key points derived from these articles. Do not hallucinate information not present in the articles.`;
+    console.log('[API] Final messages count:', messages.length);
 
     const { text } = await generateText({
-      model: groq('llama3-8b-8192'),
-      prompt: prompt,
-      temperature: 0.3,
+      model: groq('llama-3.3-70b-versatile'),
+      messages: messages as any,
+      temperature: 0.2,
     });
 
     return NextResponse.json({ summary: text });
-  } catch (error) {
-    console.error('Error generating summary:', error);
-    return NextResponse.json({ error: 'Failed to generate summary' }, { status: 500 });
+  } catch (error: any) {
+    console.error('[API] Error:', error);
+    return NextResponse.json({
+      error: 'Failed to generate response',
+      details: error.message
+    }, { status: 500 });
   }
 }

@@ -1,21 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Faustina, Montserrat } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
+import MarketBand from "../components/MarketBand";
+import { AuthProvider } from "@/context/AuthContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const faustina = Faustina({
+  variable: "--font-faustina",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Economic Times Clone",
-  description: "A clone of The Economic Times with a Perplexity-like search interface.",
+  title: "The Economic Times: Business News, Personal Finance, Financial News",
+  description: "Economic Times brings you the latest news, share market updates, and financial news.",
 };
 
 export default function RootLayout({
@@ -26,12 +28,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
+        className={`${faustina.variable} ${montserrat.variable} antialiased bg-white`}
       >
-        <Header />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {children}
-        </main>
+        <AuthProvider>
+          <div className="sticky top-0 z-50 print:hidden">
+            <MarketBand />
+            <Header />
+          </div>
+          <main className="max-w-[1280px] mx-auto px-4 lg:px-8 py-6">
+            {children}
+          </main>
+        </AuthProvider>
       </body>
     </html>
   );
