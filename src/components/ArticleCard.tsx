@@ -1,15 +1,20 @@
+"use client";
+
 import { Article } from '@/data/mockArticles';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 
 interface ArticleCardProps {
   article: Article;
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (article: Article) => void;
+  onPersonalizedSummary?: (article: Article) => void;
 }
 
-export function ArticleCard({ article, selectable, selected, onSelect }: ArticleCardProps) {
+export function ArticleCard({ article, selectable, selected, onSelect, onPersonalizedSummary }: ArticleCardProps) {
   const timeAgo = (dateString: string) => {
     const hours = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / (1000 * 60 * 60));
     if (hours < 1) return 'Just now';
@@ -24,48 +29,61 @@ export function ArticleCard({ article, selectable, selected, onSelect }: Article
     }
   };
 
+  const [imgSrc, setImgSrc] = useState(article.imageUrl);
+  const fallbackImg = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&q=80&w=800';
+
   return (
     <article
-      className={`bg-white border ${selected ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200'} rounded-lg overflow-hidden hover:shadow-md transition-shadow flex flex-col h-full relative cursor-pointer`}
+      className={`bg-white border-b border-et-border pb-6 last:border-0 group cursor-pointer transition-all ${selected ? 'bg-et-red/5' : ''}`}
       onClick={handleCardClick}
     >
-      {selectable && (
-        <div className="absolute top-2 right-2 z-10">
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={() => {}} // Handled by card click
-            className="w-5 h-5 accent-red-600 rounded cursor-pointer pointer-events-none"
+      <div className="flex gap-5">
+        {selectable && (
+          <div className="flex-shrink-0 pt-1.5">
+            <div className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-all duration-200 ${selected ? 'bg-et-red border-et-red' : 'border-et-border bg-white group-hover:border-et-red group-hover:shadow-sm'}`}>
+              {selected && (
+                <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="flex-1 space-y-1.5 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-et-red uppercase tracking-[0.1em] font-sans">{article.category}</span>
+            <span className="text-[10px] text-et-grey-medium font-bold border-l border-et-border pl-2 leading-none uppercase tracking-wide font-sans">{timeAgo(article.timestamp)}</span>
+          </div>
+          <h3 className="font-serif font-bold text-[19px] leading-[1.2] text-et-grey-dark group-hover:text-et-red transition-colors line-clamp-2">
+            {article.title}
+          </h3>
+          <p className="text-et-grey-dark/80 text-[13px] leading-[1.5] line-clamp-2 font-sans pt-0.5">
+            {article.content}
+          </p>
+        </div>
+        <div className="relative w-[115px] h-[75px] mt-1.5 flex-shrink-0 overflow-hidden bg-et-grey-light">
+          <Image
+            src={imgSrc}
+            alt={article.title}
+            fill
+            sizes="115px"
+            className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+            onError={() => setImgSrc(fallbackImg)}
           />
-        </div>
-      )}
-      <div className="relative h-48 w-full bg-gray-100 flex-shrink-0">
-        <Image
-          src={article.imageUrl}
-          alt={article.title}
-          fill
-          className={`object-cover ${selected ? 'opacity-90' : ''}`}
-        />
-      </div>
-      <div className="p-4 flex flex-col flex-grow">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">{article.category}</span>
-          <span className="text-xs text-gray-500">{timeAgo(article.timestamp)}</span>
-        </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2 leading-tight">
-          {selectable ? (
-             <span className="hover:text-red-600 transition-colors">
-               {article.title}
-             </span>
-          ) : (
-            <Link href={`#`} className="hover:text-red-600 transition-colors">
-              {article.title}
-            </Link>
+          {onPersonalizedSummary && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onPersonalizedSummary(article);
+              }}
+              className="absolute bottom-1 right-1 bg-black/70 hover:bg-et-red text-white p-1.5 rounded-sm transition-colors shadow-lg group/btn"
+              title="How this affects me?"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+            </button>
           )}
-        </h3>
-        <p className="text-sm text-gray-600 line-clamp-3">
-          {article.content}
-        </p>
+        </div>
       </div>
     </article>
   );
